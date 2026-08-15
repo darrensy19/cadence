@@ -1,0 +1,7 @@
+.DS_Store
+
+# Session data never belongs in the repo — this is a public repo and the log is
+# a personal record. Exports live wherever the sync channel is, not here.
+*.cadence.json
+cadence-export*.json
+data/
