@@ -55,9 +55,17 @@ same capabilities as localhost.
 ## Two machines, one log
 
 The MacBook and the Windows laptop each hold their own IndexedDB — that is
-per-origin and per-device, and nothing syncs it. The sync channel is an
-exported JSON file (Dropbox if it's available on both, otherwise moved by
-hand).
+per-origin and per-device, and nothing syncs it.
+
+**There is no Dropbox on the work laptop**, so there is no shared filesystem
+between the two and there is not going to be one. The sync channel is an
+exported JSON file moved by hand, and the app must make that painless rather
+than pretend it isn't happening: show when the last merge was, and make the
+export a complete log so the exported file is always a valid full backup.
+
+Do not solve this with a backend, an account, or a GitHub token stashed in the
+app. This is a public repo and one of the two machines is a work machine; a
+credential in either is not worth a convenience feature.
 
 Merging is the part that must not be got wrong, and it is easier than it looks
 because of one property worth protecting:
@@ -71,6 +79,14 @@ because of one property worth protecting:
 Keep sessions append-only. The moment a finished session becomes editable in
 place, the union stops being safe and this turns into a real sync problem. If
 editing is ever needed, supersede by writing a new record, don't mutate.
+
+**Import merges, it never replaces.** Because the merge is a union of immutable
+records, importing the same file twice is a no-op — which is what makes a
+hand-carried file safe. An import that clobbers the local log would make one
+mistimed click cost a week of history.
+
+GitHub Pages is also what makes the work laptop workable at all: it opens a URL
+and needs no server, no Python and no install permission on that machine.
 
 IndexedDB is the live store and the app must start instantly with no clicks.
 This is a deliberate inversion of the trackers' file-first model: requiring a
@@ -134,10 +150,20 @@ State machine: `idle → focus → shortBreak → focus → … → longBreak`, 
 - **YouTube is the music source**, since the owner has no local media library.
   The player must be **visible** — YouTube's embed terms require it, so a 0×0
   hidden audio-only iframe is out. Design it in as a real element.
-- Whether the app can drive playback (`onReady` firing, so it can duck the
-  volume when a break starts) is **still unverified**. If it can't, the fallback
-  is a player the user clicks directly, and that changes the layout — check
-  before designing around it.
+- The IFrame API loads and initialises from a served origin; the spike confirmed
+  the script fires its callback and the player messages back to the page. Treat
+  programmatic control as available.
+- **Embedding is per-video, and plenty of the obvious choices refuse it.**
+  Errors `150` and `101` both mean the owner disabled embedded playback — the
+  Lofi Girl live stream is one of them, which is exactly the video someone would
+  reach for first. Consequences for the design, none of them optional:
+  - Validate a video when it is added, not when a focus block is about to start.
+    Discovering the music is dead at the moment you sit down is the worst
+    possible time.
+  - Store stations as a user-managed list of known-good videos, with the
+    validation result cached against each.
+  - Handle a station going bad later — owners change this setting — by falling
+    back to synthesised ambient rather than silence, and saying why.
 
 ## Verifying a change
 
@@ -159,7 +185,7 @@ possible at all.
 
 Unresolved at the time of writing — do not silently pick an answer:
 
-- Does the YouTube IFrame API's `onReady` fire from a served origin?
-- Is Dropbox available on the work Windows laptop, or does sync need another
-  route?
-- Does break time count as worked time in the headline figures?
+- Does break time count as worked time in the headline figures? Stored
+  separately either way, so this stays reversible.
+- Which videos does the owner actually want as stations? Needs real ones that
+  pass the embed check, since the obvious candidates don't.
