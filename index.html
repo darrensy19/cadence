@@ -126,6 +126,22 @@
 
 <div class="toast" id="toast" hidden></div>
 
+<!-- Stays on screen deliberately — a silent freeze with nothing visible is the failure this
+     exists to rule out. -->
+<div class="fatal" id="fatal" hidden>
+  <div class="fatal-box">
+    <h2>Something went wrong</h2>
+    <p id="fatalMsg"></p>
+    <p class="fatal-hint">Your log is on disk and this did not touch it. Reload usually clears
+       a one-off glitch. If it keeps happening, resetting clears cadence's local storage —
+       export first from Today if you have anything unsaved.</p>
+    <div class="fatal-acts">
+      <button class="btn ghost sm" id="fatalReset">Reset local data</button>
+      <button class="btn sm" id="fatalReload">Reload</button>
+    </div>
+  </div>
+</div>
+
 <script type="module" src="js/main.js"></script>
 </body>
 </html>

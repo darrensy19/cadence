@@ -31,8 +31,17 @@ function open() {
 function tx(store, mode, fn) {
   return open().then(db => new Promise((resolve, reject) => {
     const t = db.transaction(store, mode);
-    const out = fn(t.objectStore(store));
-    t.oncomplete = () => resolve(out && out.result !== undefined ? out.result : out);
+    // Read the request's own result inside ITS onsuccess, not by inspecting the request
+    // object after the fact. `get` on a key that does not exist legitimately resolves to
+    // `undefined` — the single most common case, since it is what every key looks like
+    // before anything has ever been saved — and there is no way to tell that apart from
+    // "the request object itself, because nothing was ever assigned" without capturing the
+    // result at the one moment it is authoritative.
+    let result;
+    const req = fn(t.objectStore(store));
+    req.onsuccess = () => { result = req.result; };
+    req.onerror = () => reject(req.error);
+    t.oncomplete = () => resolve(result);
     t.onerror = () => reject(t.error);
     t.onabort = () => reject(t.error);
   }));
@@ -146,4 +155,19 @@ export async function importPayload(obj) {
 /** Kept for symmetry with the merge rules; the app itself never replaces a log. */
 export function previewMerge(mine, theirs) {
   return mergeSessions(mine, theirs);
+}
+
+/** The escape hatch for a device stuck on corrupted state: delete the database outright and
+ *  let the next load recreate it empty. Deliberately destructive and deliberately not used
+ *  anywhere except behind an explicit confirmation. */
+export async function wipeAll() {
+  const db = await open();
+  db.close();
+  dbp = null;
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.deleteDatabase(DB_NAME);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+    req.onblocked = () => resolve(); // another tab holds it open; it clears once that tab closes
+  });
 }

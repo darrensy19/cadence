@@ -3,7 +3,7 @@
 import * as E from './engine.js';
 import * as S from './store.js';
 import * as A from './audio.js';
-import { newId, validPreset, deskSec } from './model.js';
+import { newId, validPreset, validRun, deskSec } from './model.js';
 import { countdown, duration, durationTight, dayKey, clockTime } from './format.js';
 
 const $ = id => document.getElementById(id);
@@ -23,7 +23,7 @@ let selPresetId = null;
 
 // ---------------------------------------------------------------- boot
 
-boot().catch(err => toast('Could not start: ' + err.message, 8000));
+boot().catch(err => fatalError(err, 'could not start'));
 
 async function boot() {
   await S.requestPersistence();
@@ -34,12 +34,20 @@ async function boot() {
 
   const saved = await S.getKV('run', null);
   if (saved && saved.phase !== 'done') {
-    const { run: r, events } = E.restoreRun(saved, now(), mono());
-    run = r;
-    if (events.some(e => e.type === 'stale-paused')) {
-      toast('Paused — this page was closed while the timer was running, so the gap was not counted.', 7000);
+    if (!validRun(saved)) {
+      // A record this shape cannot render, and restoring it again on the next load would
+      // brick the app in exactly the same way with no way back in short of clearing storage
+      // by hand. Drop it once, here, and say so, rather than let it recur silently forever.
+      await S.delKV('run');
+      toast('The saved timer state did not look right, so it was cleared. Nothing was lost from your log.', 7000);
+    } else {
+      const { run: r, events } = E.restoreRun(saved, now(), mono());
+      run = r;
+      if (events.some(e => e.type === 'stale-paused')) {
+        toast('Paused — this page was closed while the timer was running, so the gap was not counted.', 7000);
+      }
+      startTicking();
     }
-    startTicking();
   }
 
   renderSetup();
@@ -140,10 +148,21 @@ function stopTicking() {
 
 function onTick() {
   if (!run) return;
-  const events = E.tick(run, now(), mono());
-  for (const ev of events) handleEvent(ev);
-  if (events.length || now() - lastPersist > PERSIST_MS) persistRun();
-  renderRun();
+  try {
+    const events = E.tick(run, now(), mono());
+    for (const ev of events) handleEvent(ev);
+    if (events.length || now() - lastPersist > PERSIST_MS) persistRun();
+    renderRun();
+  } catch (err) {
+    // A bad tick would otherwise repeat every second forever with the screen frozen and no
+    // way back in. Stop, drop the run so the next load starts clean, and say what happened.
+    stopTicking();
+    run = null;
+    S.delKV('run');
+    renderSetup();
+    renderAll();
+    fatalError(err, 'while updating the timer');
+  }
 }
 
 function handleEvent(ev) {
@@ -338,6 +357,9 @@ function wire() {
   $('importBtn').onclick = () => $('importFile').click();
   $('importFile').addEventListener('change', doImport);
 
+  $('fatalReset').onclick = resetLocalData;
+  $('fatalReload').onclick = () => location.reload();
+
   document.addEventListener('keydown', onKey);
 
   // A frozen tab comes back with a dead interval; re-arming is what stops the clock
@@ -433,6 +455,31 @@ function toast(msg, ms) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { el.hidden = true; }, ms || 4200);
 }
+
+/**
+ * Anything that reaches here is a bug, not a user mistake. It stays on screen — no auto-hide
+ * — because a silent freeze with nothing visible is the actual failure mode this exists to
+ * rule out. "Reset local data" is the escape hatch: it wipes the IndexedDB database and
+ * reloads, for the case where the corruption is already sitting in storage and would just
+ * reproduce the same crash on every future load.
+ */
+function fatalError(err, where) {
+  console.error('cadence:', where || '', err);
+  const el = $('fatal');
+  if (!el) { toast('Something went wrong: ' + (err && err.message || err), 9000); return; }
+  $('fatalMsg').textContent = (where ? where + ': ' : '') + (err && err.message || String(err));
+  el.hidden = false;
+}
+
+async function resetLocalData() {
+  if (!confirm('This clears everything cadence has stored on this device — sessions, categories, presets. Export first if you want to keep them. Continue?')) return;
+  stopTicking();
+  try { await S.wipeAll(); } catch (e) { /* best effort — reload regardless */ }
+  location.reload();
+}
+
+window.addEventListener('error', e => fatalError(e.error || e.message, 'unexpected error'));
+window.addEventListener('unhandledrejection', e => fatalError(e.reason, 'unexpected error'));
 
 function askNotificationPermission() {
   if (!('Notification' in window) || Notification.permission !== 'default') return;

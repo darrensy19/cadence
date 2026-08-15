@@ -42,6 +42,17 @@ export function validPreset(p) {
     && (p.longMin === null || (typeof p.longMin === 'number' && p.longMin > 0));
 }
 
+/** A run persisted mid-sitting and read back on the next load. Checked before it is trusted —
+ *  a malformed record here must not be allowed to render, because render would then fail on
+ *  every subsequent load with no way back into the app short of clearing storage by hand. */
+export function validRun(r) {
+  return !!r
+    && ['focus', 'break', 'awaiting', 'done'].includes(r.phase)
+    && typeof r.categoryId === 'string'
+    && typeof r.startedAt === 'number'
+    && validPreset(r.preset);
+}
+
 /** Total time at the desk. Breaks count — three hours at the desk is 2h30 focus and
  *  30m break, reported as three hours. Stored decomposed, summed only for display. */
 export function deskSec(s) { return (s.focusSec || 0) + (s.breakSec || 0); }

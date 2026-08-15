@@ -121,8 +121,13 @@ it is the one thing worth copying wholesale from that repo.
 
 ## The timer engine
 
-State machine: `idle → focus → shortBreak → focus → … → longBreak`, plus
-`paused`.
+State machine (`js/engine.js`): `phase` is `'focus' | 'break' | 'awaiting' |
+'done'`, plus a `paused` boolean rather than a fifth phase. A run is created
+already in `'focus'` — there is no `'idle'` phase before a run exists.
+`breakKind` (`'short' | 'long'`) distinguishes the two break lengths within
+the single `'break'` phase rather than splitting them into separate phases.
+`'awaiting'` is the deliberate gap after a break ends, before the next focus
+block is clicked into existence.
 
 - **Breaks auto-start; focus blocks do not.** The app can tell when you stopped
   working. It cannot tell when you came back. Requiring a click to begin the
@@ -168,6 +173,18 @@ State machine: `idle → focus → shortBreak → focus → … → longBreak`, 
     validation result cached against each.
   - Handle a station going bad later — owners change this setting — by falling
     back to synthesised ambient rather than silence, and saying why.
+
+## `store.js`'s `tx()` reads a request's result inside its own `onsuccess`
+
+Not the more obvious-looking `resolve(out.result)` read after the fact — read
+`docs/postmortem-first-boot-freeze.md` for why, and treat that pattern as load-
+bearing if `tx()` is ever touched. Short version: `undefined` is the correct,
+ordinary result of a `get()` on a key that has never been written, which is
+every key on a first-ever visit — and a shortcut that tries to detect "no real
+result yet" by checking the request object's truthiness cannot tell that case
+apart from a real one, so it silently resolves with the wrong thing instead of
+throwing. Any future change to this function should keep reading `.result`
+inside `req.onsuccess`, not by inspecting `req` after the transaction settles.
 
 ## Verifying a change
 

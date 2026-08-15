@@ -248,3 +248,24 @@ body.paused .clock { opacity: 0.45; }
   font-size: 13.5px; color: var(--ink); box-shadow: 0 16px 44px rgba(0, 0, 0, 0.45);
   max-width: min(520px, 90vw);
 }
+
+/* ---------------------------------------------------------------- fatal */
+
+.fatal {
+  position: fixed; inset: 0; z-index: 30;
+  background: rgba(10, 6, 6, 0.72); backdrop-filter: blur(10px);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.fatal-box {
+  width: min(440px, 100%);
+  background: rgba(30, 16, 16, 0.92); border: 1px solid rgba(255, 130, 110, 0.28);
+  border-radius: 18px; padding: 24px 26px; box-shadow: 0 30px 90px rgba(0, 0, 0, 0.5);
+}
+.fatal-box h2 { font-size: 16px; font-weight: 600; color: #FFD8CE; }
+.fatal-box p { font-size: 13.5px; color: rgba(255, 255, 255, 0.72); margin-top: 10px; line-height: 1.5; }
+.fatal-box #fatalMsg {
+  font-family: ui-monospace, "SF Mono", monospace; font-size: 12.5px;
+  background: rgba(0, 0, 0, 0.3); border-radius: 8px; padding: 9px 11px; color: #FFB8A8;
+}
+.fatal-hint { color: rgba(255, 255, 255, 0.5) !important; }
+.fatal-acts { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
