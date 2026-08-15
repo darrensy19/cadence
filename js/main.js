@@ -456,6 +456,16 @@ function toast(msg, ms) {
   toastTimer = setTimeout(() => { el.hidden = true; }, ms || 4200);
 }
 
+// The whole point of this box is to never be the thing that goes wrong. `err.message` is
+// not a safe assumption — a thrown string, a rejected non-Error, or a genuinely empty
+// message all defeat it silently, which is exactly the failure this exists to prevent.
+function describeError(err) {
+  if (err instanceof Error) return err.message || err.name || (err.stack || '').split('\n')[0] || 'Error (no message)';
+  if (typeof err === 'string') return err || '(threw an empty string)';
+  if (err && typeof err === 'object') { try { return JSON.stringify(err); } catch (e) { /* falls through */ } }
+  return String(err) || '(no error information was given)';
+}
+
 /**
  * Anything that reaches here is a bug, not a user mistake. It stays on screen — no auto-hide
  * — because a silent freeze with nothing visible is the actual failure mode this exists to
@@ -464,10 +474,11 @@ function toast(msg, ms) {
  * reproduce the same crash on every future load.
  */
 function fatalError(err, where) {
+  const msg = describeError(err);
   console.error('cadence:', where || '', err);
   const el = $('fatal');
-  if (!el) { toast('Something went wrong: ' + (err && err.message || err), 9000); return; }
-  $('fatalMsg').textContent = (where ? where + ': ' : '') + (err && err.message || String(err));
+  if (!el) { toast('Something went wrong: ' + msg, 9000); return; }
+  $('fatalMsg').textContent = (where ? where + ': ' : '') + msg;
   el.hidden = false;
 }
 

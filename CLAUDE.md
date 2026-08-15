@@ -52,6 +52,18 @@ Serve it instead. macOS has no node; Python is what's available:
 Deployment is GitHub Pages from `main`, which is https and therefore has the
 same capabilities as localhost.
 
+**Pages sends `cache-control: max-age=600` on every file, and there is no
+`_headers`-style override on the free tier to change that.** Each file's
+window starts from when the browser fetched *that* file, not from page load
+— so a normal reload minutes after a deploy can serve a stale `main.js`
+alongside a fresh `store.js`, or the reverse, and the two can disagree with
+each other in ways that are genuinely confusing to debug. After every deploy,
+verify with a hard reload (Cmd+Shift+R / Ctrl+Shift+R), not a normal one —
+this applies to the owner testing a change and to a verification pass done
+here. Do not "fix" this with manually-versioned query strings on every
+import specifier across every module; keeping those in sync by hand on every
+deploy is worse than the cache window it would replace.
+
 ## Two machines, one log
 
 The MacBook and the Windows laptop each hold their own IndexedDB — that is
