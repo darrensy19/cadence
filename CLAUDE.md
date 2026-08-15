@@ -196,3 +196,21 @@ Unresolved at the time of writing — do not silently pick an answer:
   laptop, which matters more here than usual because the type *is* the
   interface. One self-hosted `.woff2` fixes it without breaking the no-build,
   no-dependency rule — it is an asset, not a package.
+
+## Break overrun is not banked
+
+A break that runs past its planned length stops accumulating. Walking away for
+an hour after a five-minute break is not an hour at the desk, and counting it
+would inflate the only figure the app reports. The run parks in `awaiting`
+until the user starts the next focus block. This is the same instinct as the
+sleep-gap rule: never bank time nobody spent.
+
+## Running the tests
+
+    /System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc -m tests/engine.test.js
+
+61 assertions over boundaries, long-break placement, 52/17, pause, OS suspend
+vs. a frozen tab, multi-interval gaps, restore-after-reload, the record shape
+and merge idempotency. They run as plain function calls against a fake clock —
+which is only possible because the engine takes `now` and `mono` as arguments
+instead of reading the clock itself. Keep it that way.
