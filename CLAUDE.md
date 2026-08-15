@@ -101,8 +101,12 @@ not the critical path.
   the desk is one record with `cycles: 6`. Logging each pomodoro separately
   makes the history unreadable within a week.
 - **`focusSec` and `breakSec` are stored separately and never summed into one
-  number at rest.** Whether break time counts as "worked" is a presentation
-  decision, and it must stay reversible.
+  number at rest**, even though the headline adds them. Storage stays
+  decomposed so the presentation can change without a migration.
+- **Break time counts.** Three hours at the desk means 2h30 focus and 30m
+  break, and the headline figure is the three hours. Breaks are part of the
+  method, not time off it. Show the decomposition underneath — the split is
+  interesting, but it is not the number being reported.
 - **Category** — `{id, name, color}`. Seeded with Study, Work, Reading, Coding;
   the user can add more. Sessions reference the id.
 - **Preset** — `{id, name, focusMin, shortMin, longMin, cyclesBeforeLong}`.
@@ -185,7 +189,10 @@ possible at all.
 
 Unresolved at the time of writing — do not silently pick an answer:
 
-- Does break time count as worked time in the headline figures? Stored
-  separately either way, so this stays reversible.
 - Which videos does the owner actually want as stations? Needs real ones that
   pass the embed check, since the obvious candidates don't.
+- Which visual direction (see `design/`), and whether to self-host a typeface.
+  The system font stack renders differently on the MacBook and the Windows
+  laptop, which matters more here than usual because the type *is* the
+  interface. One self-hosted `.woff2` fixes it without breaking the no-build,
+  no-dependency rule — it is an asset, not a package.
