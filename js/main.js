@@ -196,7 +196,7 @@ function renderRun() {
   $('runCard').hidden = !running;
   $('desk').hidden = !running;
   $('ctxChip').hidden = !running;
-  $('presetChip').hidden = !running;
+  $('segStrip').hidden = !running;
   $('brand').hidden = running;
 
   if (!running) {
@@ -223,7 +223,7 @@ function renderRun() {
   // context
   $('ctxDot').style.background = cat.color;
   $('ctxText').textContent = run.label ? `${cat.name} · ${run.label}` : cat.name;
-  $('presetChip').textContent = run.preset.name;
+  renderSegStrip(run.preset, phase, run.breakKind);
 
   // clock + labels
   const remain = E.remainingSec(run, t);
@@ -268,6 +268,17 @@ function renderRun() {
   $('hints').innerHTML = phase === 'awaiting'
     ? `<kbd>enter</kbd> start · <kbd>E</kbd> end · <kbd>L</kbd> today`
     : `<kbd>space</kbd> ${run.paused ? 'resume' : 'pause'} · <kbd>E</kbd> end · <kbd>L</kbd> today`;
+}
+
+// preset.longMin is null for a no-long-break rhythm (52/17) — two segments instead of three,
+// the same way the rest of the app lets that shape fall out of the model instead of special-
+// casing it. 'awaiting' highlights focus, since that's what the next click starts.
+function renderSegStrip(preset, phase, breakKind) {
+  const segs = [{ key: 'focus', min: preset.focusMin }, { key: 'short', min: preset.shortMin }];
+  if (preset.longMin != null) segs.push({ key: 'long', min: preset.longMin });
+  const activeKey = phase === 'break' ? (breakKind === 'long' ? 'long' : 'short') : 'focus';
+  $('segStrip').innerHTML = segs.map(s =>
+    `<span class="seg${s.key === activeKey ? ' active' : ''}">${s.min}</span>`).join('');
 }
 
 function todaysSessions() {

@@ -10,8 +10,10 @@
 </head>
 <body>
 
-<!-- Grain texture only — the signature motion is the pulse trace on the running screen
-     (js/pulse.js), not an ambient background loop. Costs no bytes and no network. -->
+<!-- One soft, off-centre glow plus grain texture — the pulse trace on the running screen
+     (js/pulse.js) stays the signature motion; this is ambient depth, not a second one.
+     Costs no bytes and no network. -->
+<div class="wash" aria-hidden="true"></div>
 <div class="grain" aria-hidden="true"></div>
 
 <main class="frame">
@@ -22,7 +24,7 @@
     </button>
     <span class="brand" id="brand">cadence</span>
     <div class="top-right">
-      <button class="chip ghost" id="presetChip" hidden></button>
+      <div class="segstrip" id="segStrip" hidden></div>
       <button class="chip ghost icon" id="logBtn" title="Today (L)" aria-label="Today">▤</button>
     </div>
   </header>

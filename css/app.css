@@ -36,7 +36,7 @@
    author stylesheet always loads after the UA one. Any class below that sets `display` on an
    element also toggled via the `hidden` property must repeat that fact here, or `hidden` is
    silently a no-op on it. */
-.chip[hidden], .overlay[hidden], .fatal[hidden] { display: none; }
+.chip[hidden], .overlay[hidden], .fatal[hidden], .segstrip[hidden] { display: none; }
 
 html, body { height: 100%; }
 
@@ -50,13 +50,33 @@ body {
 
 /* ---------------------------------------------------------------- surface */
 
-/* Flat and confident on purpose — a colour-blob gradient needs a vignette to stay readable
-   underneath it; a flat instrument-panel void does not. Grain is the one texture kept: cheap,
-   and it is the difference between "dark" and "digital-flat dark". */
+/* Grain: cheap texture, the difference between "dark" and "digital-flat dark". */
 .grain {
   position: fixed; inset: 0; z-index: 1; opacity: 0.05; pointer-events: none;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/></filter><rect width='120' height='120' filter='url(%23n)' opacity='0.5'/></svg>");
 }
+
+/* Ambient wash — round two on the background after the flat void read as empty. One soft glow,
+   not the old three busy blobs, kept off-centre so it never sits directly behind the clock and
+   competes with legibility. It recolours with --accent, so a break doesn't just change the
+   clock's colour while the room stays the same. Same restraint rule as the pulse trace: still
+   during focus, allowed to drift on a break — motion is spent on telling you something, not on
+   filling the screen. If this doesn't earn its keep, the fallback is a warmer flat --void and
+   deleting this block; nothing else depends on it. */
+.wash {
+  position: fixed; inset: -10%; z-index: 0; pointer-events: none;
+  background: radial-gradient(46% 40% at 78% 82%,
+              color-mix(in srgb, var(--accent) 20%, transparent), transparent 72%);
+  filter: blur(90px);
+  transition: background 1.4s ease;
+  animation: washDrift 52s ease-in-out infinite alternate;
+}
+body.phase-focus .wash { animation-play-state: paused; }
+@keyframes washDrift {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(-6%, -8%) scale(1.12); }
+}
+@media (prefers-reduced-motion: reduce) { .wash { animation: none; } }
 
 /* ---------------------------------------------------------------- layout */
 
@@ -107,6 +127,20 @@ body {
 .chip.icon { padding: 6px 9px; font-size: 15px; line-height: 1; margin-right: -9px; }
 .chip:hover { color: var(--ink); border-color: var(--hairline); }
 .chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
+
+/* The live reading of which interval type is running — 25 · 5 · 15, whichever is current lit
+   up. Different information from the time-signature under the clock: this says what KIND of
+   interval you're in, that says which cycle NUMBER you're on. */
+.segstrip {
+  display: inline-flex; gap: 2px;
+  background: rgba(244, 238, 227, 0.05); border: 1px solid var(--hairline);
+  border-radius: 999px; padding: 3px;
+}
+.segstrip .seg {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.02em; color: var(--ink-3);
+  padding: 5px 10px; border-radius: 999px; transition: background 0.4s ease, color 0.4s ease;
+}
+.segstrip .seg.active { background: var(--accent); color: #1A0F08; }
 
 .card {
   background: var(--glass);
