@@ -8,11 +8,13 @@ export function newId() {
   return 'id-' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 
+// Deliberately a separate hue family from --pulse/--rest in app.css — a category dot must
+// never be mistaken for a phase signal when both are on screen at once.
 export const DEFAULT_CATEGORIES = [
-  { id: 'study',   name: 'Study',   color: '#D8813A' },
-  { id: 'work',    name: 'Work',    color: '#5B8DB8' },
-  { id: 'reading', name: 'Reading', color: '#7BA05B' },
-  { id: 'coding',  name: 'Coding',  color: '#A76BB0' }
+  { id: 'study',   name: 'Study',   color: '#E8A33D' },
+  { id: 'work',    name: 'Work',    color: '#7C93B8' },
+  { id: 'reading', name: 'Reading', color: '#8FAE7C' },
+  { id: 'coding',  name: 'Coding',  color: '#B98FC9' }
 ];
 
 // `longMin: null` is how 52/17 falls out of the same model as 25/5/15 instead of being a

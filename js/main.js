@@ -3,6 +3,7 @@
 import * as E from './engine.js';
 import * as S from './store.js';
 import * as A from './audio.js';
+import * as Pulse from './pulse.js';
 import { newId, validPreset, validRun, deskSec } from './model.js';
 import { countdown, duration, durationTight, dayKey, clockTime } from './format.js';
 
@@ -10,7 +11,7 @@ const $ = id => document.getElementById(id);
 const now = () => Date.now();
 const mono = () => performance.now();
 
-const ACCENT = { focus: '#D8813A', break: '#5FA8B8', awaiting: '#5FA8B8' };
+const ACCENT = { focus: '#FF7A45', break: '#6FA8D9', awaiting: '#6FA8D9' };
 const PERSIST_MS = 10000;
 
 let cfg = null;
@@ -26,6 +27,7 @@ let selPresetId = null;
 boot().catch(err => fatalError(err, 'could not start'));
 
 async function boot() {
+  Pulse.mount($('pulseCanvas'));
   await S.requestPersistence();
   cfg = await S.loadConfig();
   sessions = await S.allSessions();
@@ -201,14 +203,22 @@ function renderRun() {
     document.title = 'cadence';
     document.body.className = '';
     $('hints').innerHTML = `<kbd>L</kbd> today`;
+    Pulse.setRunning(false);
     return;
   }
 
   const t = now();
   const phase = run.phase;
   const cat = catById(run.categoryId);
-  document.documentElement.style.setProperty('--accent', ACCENT[phase] || ACCENT.focus);
+  const accent = ACCENT[phase] || ACCENT.focus;
+  document.documentElement.style.setProperty('--accent', accent);
   document.body.className = `phase-${phase}` + (run.paused ? ' paused' : '');
+  // [hidden] reports a zero-size rect, so a canvas mounted while hidden is stale by the time
+  // it is shown — cheap enough to just re-measure on every render rather than track a
+  // hidden→visible transition separately.
+  Pulse.resize();
+  Pulse.setColor(accent);
+  Pulse.setRunning(!run.paused && phase !== 'awaiting');
 
   // context
   $('ctxDot').style.background = cat.color;
@@ -236,18 +246,12 @@ function renderRun() {
   $('subline').textContent = sub;
   document.title = (phase === 'awaiting' ? 'Ready' : clock) + ' · cadence';
 
-  // pips — position within the current group of cycles
+  // time signature — position within the current group of cycles, "beats per measure"
   const n = run.preset.cyclesBeforeLong || 4;
   const inGroup = run.cyclesCompleted % n;
   const longNow = phase === 'break' && run.breakKind === 'long';
-  const pips = $('pips');
-  pips.innerHTML = '';
-  for (let i = 0; i < n; i++) {
-    const d = document.createElement('span');
-    const done = longNow || i < inGroup;
-    d.className = 'pip' + (done ? ' done' : (i === inGroup && phase === 'focus' ? ' now' : ''));
-    pips.appendChild(d);
-  }
+  const position = longNow ? n : inGroup + 1;
+  $('timesigFrac').textContent = `${position} ⁄ ${n}`;
 
   // buttons
   const main = $('mainBtn'), skip = $('skipBtn');

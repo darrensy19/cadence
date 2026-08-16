@@ -3,9 +3,10 @@
 A focus timer with configurable work/rest intervals — 25/5/15, 50/10/30, 52/17
 or your own — a session log across categories, and an ambient layer.
 
-**Status: nothing built yet.** The repo currently holds the decisions and the
-constraints; the app comes next. See [CLAUDE.md](CLAUDE.md) for the
-architecture and the reasoning behind it.
+The engine, storage and log are built and live at
+<https://darrensy19.github.io/cadence/>. Music and custom wallpapers are not
+built yet. See [CLAUDE.md](CLAUDE.md) for the architecture and the reasoning
+behind it.
 
 ## Running it
 
@@ -23,3 +24,9 @@ Then open <http://localhost:8777>.
 
 Chromium (Chrome or Edge). It uses the File System Access API for import and
 export.
+
+## Typeface
+
+The clock and wordmark use [Martian Mono](https://github.com/evilmartians/mono)
+by The Martian Mono Project Authors, self-hosted under the SIL Open Font
+License — see `fonts/OFL.txt`.

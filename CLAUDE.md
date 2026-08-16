@@ -164,10 +164,27 @@ block is clicked into existence.
   partials with per-partial exponential decay; brown noise is integrated white
   noise through a lowpass. Both were prototyped in the spike and sound good. No
   audio files in the repo.
-- **Wallpaper defaults are generative** — gradients and canvas, no assets. Do
-  not inline images as data URIs; one 1920×1080 JPEG is hundreds of KB base64'd
-  and the repo stops being pleasant to work in. If the user wants their own
-  wallpapers, read them from a local folder via the file picker.
+- **No image assets, generated or otherwise.** The first version had drifting
+  gradient blobs; the redesign replaced them with `js/pulse.js`, a canvas trace
+  that is the signature motion instead of an ambient loop — see below. If the
+  user later wants their own wallpapers, read them from a local folder via the
+  file picker; do not inline images as data URIs — one 1920×1080 JPEG is
+  hundreds of KB base64'd and the repo stops being pleasant to work in.
+- **The clock and wordmark are set in a self-hosted mono, `fonts/`.** One
+  `.woff2` (Martian Mono, OFL-licensed — `fonts/OFL.txt`), used nowhere else.
+  Everything else stays on the system sans stack. The contrast between one
+  characterful face used with restraint and a quiet system face everywhere
+  else is the typographic idea; do not extend the mono to more elements or
+  add a second self-hosted face without a real reason — that dilutes the one
+  thing it was for.
+- **The pulse trace (`js/pulse.js`) is the signature, and it must stay tied to
+  real state, not decorate regardless of it.** It scrolls while the timer is
+  genuinely running and freezes the instant it is paused. If this is ever
+  extended (idle-screen ambience, a different waveform), keep that freeze —
+  it is what makes the motion a true reading of the app rather than a loop
+  that happens to sit near the clock. Colour comes from `--accent`, so it
+  recolours on the same phase shift as everything else; do not give it an
+  independent colour.
 - **YouTube is the music source**, since the owner has no local media library.
   The player must be **visible** — YouTube's embed terms require it, so a 0×0
   hidden audio-only iframe is out. Design it in as a real element.
@@ -234,11 +251,12 @@ Unresolved at the time of writing — do not silently pick an answer:
 
 - Which videos does the owner actually want as stations? Needs real ones that
   pass the embed check, since the obvious candidates don't.
-- Which visual direction (see `design/`), and whether to self-host a typeface.
-  The system font stack renders differently on the MacBook and the Windows
-  laptop, which matters more here than usual because the type *is* the
-  interface. One self-hosted `.woff2` fixes it without breaking the no-build,
-  no-dependency rule — it is an asset, not a package.
+
+Resolved: the visual direction question (see `design/` for the three
+original mockups it was chosen from — Station won, then went through a
+second pass, "Pulse," that dropped the ambient wallpaper for the trace in
+`js/pulse.js` and added the self-hosted mono. `design/` is left as history of
+how the decision was made, not a description of the current build.
 
 ## Break overrun is not banked
 
