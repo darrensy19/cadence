@@ -214,6 +214,20 @@ There is no node on the MacBook, so there is no test runner. Two things work:
 Keep the DOM out of the engine. That boundary is what makes the first option
 possible at all.
 
+**`jsc` proves the logic is right. It says nothing about whether the page
+looks right, because it has no CSS engine at all.** The actual bug that made
+the first deploy unusable — the Today overlay and later the error banner
+both showing permanently regardless of their `hidden` attribute — was a pure
+CSS specificity mistake (`.chip`, `.overlay` and `.fatal` each set `display`
+directly, tying the browser's own `[hidden] { display: none }` rule and
+winning the tie by loading later). Every `jsc` test passed the entire time;
+none of them could have caught this, because none of them render anything.
+When a class sets `display` on an element that is also toggled via `hidden`,
+add a `.thatClass[hidden] { display: none; }` override — see the top of
+`css/app.css` — or the attribute is silently a no-op on it. A change to
+visual state (anything toggling `hidden`, anything new added to a class that
+already does) needs a real render to confirm, not just the test suite.
+
 ## Open questions
 
 Unresolved at the time of writing — do not silently pick an answer:

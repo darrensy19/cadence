@@ -16,6 +16,13 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* The browser's own [hidden] { display: none } rule and an author rule that sets `display`
+   on the same element are the same specificity — whichever loads later wins the tie, and an
+   author stylesheet always loads after the UA one. Any class below that sets `display` on an
+   element also toggled via the `hidden` property must repeat that fact here, or `hidden` is
+   silently a no-op on it. This bit .chip, .overlay and .fatal all at once. */
+.chip[hidden], .overlay[hidden], .fatal[hidden] { display: none; }
+
 html, body { height: 100%; }
 
 body {
