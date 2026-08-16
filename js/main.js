@@ -3,7 +3,6 @@
 import * as E from './engine.js';
 import * as S from './store.js';
 import * as A from './audio.js';
-import * as Pulse from './pulse.js';
 import { newId, validPreset, validRun, deskSec } from './model.js';
 import { countdown, duration, durationTight, dayKey, clockTime } from './format.js';
 
@@ -21,13 +20,13 @@ let ticker = null;
 let lastPersist = 0;
 let selCatId = null;
 let selPresetId = null;
+let pipWin = null;        // the floating clock, once opened — see "picture-in-picture" below
 
 // ---------------------------------------------------------------- boot
 
 boot().catch(err => fatalError(err, 'could not start'));
 
 async function boot() {
-  Pulse.mount($('pulseCanvas'));
   await S.requestPersistence();
   cfg = await S.loadConfig();
   sessions = await S.allSessions();
@@ -119,6 +118,7 @@ async function startRun() {
   await persistRun(true);
   startTicking();
   renderAll();
+  openPip(); // rides the Start click's activation; silently no-ops if unsupported or declined
 }
 
 async function endRun() {
@@ -127,6 +127,7 @@ async function endRun() {
   const kept = rec.focusSec + rec.breakSec >= 30;   // ignore an accidental start
   run = null;
   stopTicking();
+  closePip();
   await S.delKV('run');
   if (kept) {
     await S.putSession(rec);
@@ -140,6 +141,10 @@ async function endRun() {
 
 function startTicking() {
   stopTicking();
+  // A PiP window, once open, already drives onTick() on its own loop — one Chrome never
+  // throttles, since that window is never the hidden one. Arming a second interval here
+  // would advance the run twice a second.
+  if (pipWin && !pipWin.closed) return;
   ticker = setInterval(onTick, 1000);
   onTick();
 }
@@ -155,10 +160,12 @@ function onTick() {
     for (const ev of events) handleEvent(ev);
     if (events.length || now() - lastPersist > PERSIST_MS) persistRun();
     renderRun();
+    paintPip();
   } catch (err) {
     // A bad tick would otherwise repeat every second forever with the screen frozen and no
     // way back in. Stop, drop the run so the next load starts clean, and say what happened.
     stopTicking();
+    closePip();
     run = null;
     S.delKV('run');
     renderSetup();
@@ -186,6 +193,143 @@ async function persistRun(force) {
   else if (force) await S.delKV('run');
 }
 
+// ---------------------------------------------------------------- picture-in-picture
+
+// A real floating window (Document Picture-in-Picture), not a hidden audio-only trick — it
+// sits on top of other apps and other tabs, which is the entire point: the clock stays
+// visible for exactly the moment you don't have this page in view. Ported from the same
+// pattern already proven in the study tracker's PiP clock, including the two failure modes
+// that took real iterations to get right there: double-ticking against the main window, and
+// a close that doesn't leave anything stale behind.
+function pipSupported() { return 'documentPictureInPicture' in window; }
+
+async function openPip() {
+  if (!pipSupported() || !run) return;
+  if (pipWin && !pipWin.closed) { try { pipWin.focus(); } catch (e) {} return; }
+  let win;
+  try {
+    win = await documentPictureInPicture.requestWindow({ width: 280, height: 168 });
+  } catch (e) {
+    return; // no user activation, or the user declined — the manual float button is the retry
+  }
+  pipWin = win;
+  // Its own loop drives ticks from here on — stop the main tab's now-redundant interval so
+  // the run only advances once a second, not twice.
+  stopTicking();
+  const d = win.document;
+  d.head.innerHTML = `<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --pip-void: #0C0A0E; --pip-ink: #F4EEE3; --pip-ink-dim: rgba(244,238,227,0.5);
+            --pip-line: rgba(244,238,227,0.14); }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--pip-void); color: var(--pip-ink); height: 100vh; position: relative;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 10px; user-select: none; -webkit-font-smoothing: antialiased;
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; } }
+    .lbl {
+      font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.14em; font-weight: 600;
+      color: var(--pip-accent, var(--pip-ink-dim)); display: flex; align-items: center; gap: 7px;
+      transition: color 0.8s;
+    }
+    .dot { width: 6px; height: 6px; border-radius: 999px;
+           background: var(--pip-accent, var(--pip-ink-dim)); transition: background 0.8s; }
+    /* Just the clock: no separate motion element, only this blinking colon and the label/dot
+       colour crossfading with the phase — same restraint as the main screen's chosen
+       direction, just smaller. */
+    .clock {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace; font-weight: 500;
+      font-size: clamp(28px, 15vw, 48px); font-variant-numeric: tabular-nums;
+      letter-spacing: -0.01em; line-height: 1;
+    }
+    .colon { animation: blink 1s steps(1) infinite; }
+    @keyframes blink { 50% { opacity: 0.2; } }
+    .task {
+      font-size: 11px; color: var(--pip-ink-dim); max-width: 88%; text-align: center;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .acts { display: flex; gap: 7px; margin-top: 2px; }
+    button {
+      font: inherit; font-size: 11.5px; font-weight: 600; padding: 6px 14px; cursor: pointer;
+      border-radius: 999px; border: 1px solid var(--pip-line); background: transparent;
+      color: var(--pip-ink); transition: background 140ms, border-color 140ms;
+    }
+    button:hover { background: rgba(244,238,227,0.08); }
+    button.primary { background: var(--pip-accent, #FF7A45); border-color: transparent; color: #1A0F08; }
+    .corner-btn {
+      position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; padding: 0;
+      display: flex; align-items: center; justify-content: center; border-radius: 999px;
+      border: 1px solid transparent; background: transparent; color: var(--pip-ink-dim); font-size: 12px;
+    }
+    .corner-btn:hover { background: rgba(244,238,227,0.08); border-color: var(--pip-line); color: var(--pip-ink); }
+  </style>`;
+  d.body.innerHTML = `
+    <button id="pipBack" class="corner-btn" title="Back to tab" aria-label="Back to tab">⤢</button>
+    <div class="lbl"><span class="dot" id="pipDot"></span><span id="pipLabel">Focus</span></div>
+    <div class="clock" id="pipClock"><span id="pipMM">0</span><span class="colon">:</span><span id="pipSS">00</span></div>
+    <div class="task" id="pipTask"></div>
+    <div class="acts">
+      <button id="pipToggle" class="primary">Pause</button>
+      <button id="pipEnd">End</button>
+    </div>`;
+  d.getElementById('pipToggle').addEventListener('click', () => {
+    if (!run) return;
+    if (run.phase === 'awaiting') E.startFocus(run, now(), mono());
+    else if (run.paused) E.resume(run, now(), mono());
+    else E.pause(run, now());
+    persistRun(); renderRun(); paintPip();
+  });
+  d.getElementById('pipEnd').addEventListener('click', () => { endRun(); });
+  // window here is the main tab's window — this closure runs in the opener's script context —
+  // so focus it before folding the floating clock away, the same order the study tracker's
+  // own PiP settled on, so the tab is already frontmost by the time the window disappears.
+  d.getElementById('pipBack').addEventListener('click', () => { window.focus(); closePip(); });
+  win.setInterval(onTick, 1000);
+  win.addEventListener('pagehide', () => {
+    pipWin = null;
+    // The PiP window's loop was the only thing ticking the run — if the session is still
+    // going, the main tab needs its own interval back or the display freezes silently.
+    if (run) startTicking();
+  });
+  paintPip();
+}
+
+function closePip() {
+  if (pipWin && !pipWin.closed) { try { pipWin.close(); } catch (e) {} }
+  pipWin = null;
+}
+
+function paintPip() {
+  if (!pipWin || pipWin.closed || !run) return;
+  const d = pipWin.document;
+  const mmEl = d.getElementById('pipMM');
+  if (!mmEl) return;
+
+  const t = now();
+  const phase = run.phase;
+  const accent = ACCENT[phase] || ACCENT.focus;
+  d.documentElement.style.setProperty('--pip-accent', accent);
+
+  const remain = E.remainingSec(run, t);
+  const text = phase === 'awaiting' ? '0:00' : countdown(remain);
+  const splitAt = text.lastIndexOf(':');
+  mmEl.textContent = text.slice(0, splitAt);
+  d.getElementById('pipSS').textContent = text.slice(splitAt + 1);
+
+  let label;
+  if (phase === 'focus') label = run.paused ? 'Paused' : 'Focus';
+  else if (phase === 'break') label = run.paused ? 'Paused' : (run.breakKind === 'long' ? 'Long break' : 'Short break');
+  else label = 'Break over';
+  d.getElementById('pipLabel').textContent = label;
+
+  const cat = catById(run.categoryId);
+  d.getElementById('pipTask').textContent = run.label ? `${cat.name} · ${run.label}` : cat.name;
+
+  const toggle = d.getElementById('pipToggle');
+  toggle.textContent = phase === 'awaiting' ? 'Start focus' : (run.paused ? 'Resume' : 'Pause');
+}
+
 // ---------------------------------------------------------------- rendering
 
 function renderAll() { renderRun(); renderToday(); }
@@ -198,12 +342,13 @@ function renderRun() {
   $('ctxChip').hidden = !running;
   $('segStrip').hidden = !running;
   $('brand').hidden = running;
+  $('pipBtn').hidden = !running || !pipSupported();
+  $('playerChip').hidden = !running;
 
   if (!running) {
     document.title = 'cadence';
     document.body.className = '';
     $('hints').innerHTML = `<kbd>L</kbd> today`;
-    Pulse.setRunning(false);
     return;
   }
 
@@ -213,22 +358,18 @@ function renderRun() {
   const accent = ACCENT[phase] || ACCENT.focus;
   document.documentElement.style.setProperty('--accent', accent);
   document.body.className = `phase-${phase}` + (run.paused ? ' paused' : '');
-  // [hidden] reports a zero-size rect, so a canvas mounted while hidden is stale by the time
-  // it is shown — cheap enough to just re-measure on every render rather than track a
-  // hidden→visible transition separately.
-  Pulse.resize();
-  Pulse.setColor(accent);
-  Pulse.setRunning(!run.paused && phase !== 'awaiting');
 
   // context
   $('ctxDot').style.background = cat.color;
   $('ctxText').textContent = run.label ? `${cat.name} · ${run.label}` : cat.name;
   renderSegStrip(run.preset, phase, run.breakKind);
 
-  // clock + labels
+  // clock + labels — split so only the seconds colon blinks (css/app.css's .colon rule)
   const remain = E.remainingSec(run, t);
   const clock = phase === 'awaiting' ? '0:00' : countdown(remain);
-  $('clock').textContent = clock;
+  const splitAt = clock.lastIndexOf(':');
+  $('clockMM').textContent = clock.slice(0, splitAt);
+  $('clockSS').textContent = clock.slice(splitAt + 1);
 
   let state, sub;
   if (phase === 'focus') {
@@ -354,6 +495,7 @@ function wire() {
     if (run && E.skipBreak(run, now(), mono())) { persistRun(); renderRun(); }
   };
   $('endBtn').onclick = () => endRun();
+  $('pipBtn').onclick = () => openPip();
 
   $('logBtn').onclick = openLog;
   $('closeLog').onclick = closeLog;
@@ -503,6 +645,7 @@ function fatalError(err, where) {
 async function resetLocalData() {
   if (!confirm('This clears everything cadence has stored on this device — sessions, categories, presets. Export first if you want to keep them. Continue?')) return;
   stopTicking();
+  closePip();
   try { await S.wipeAll(); } catch (e) { /* best effort — reload regardless */ }
   location.reload();
 }

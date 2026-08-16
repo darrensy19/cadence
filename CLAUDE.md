@@ -158,16 +158,48 @@ block is clicked into existence.
   The interval only repaints.
 - The running timer is checkpointed so a reload or crash resumes it.
 
+## Picture-in-picture
+
+`openPip()`/`closePip()`/`paintPip()` in `js/main.js`. A real Document Picture-in-Picture
+window (`documentPictureInPicture.requestWindow()`), not a hidden trick — it floats on top of
+other windows and other tabs, which is the actual point: the clock stays visible for exactly
+the moment cadence's own tab isn't in view. Ported from the same pattern already proven in
+`~/Projects/trackers/study-tracker`'s PiP clock, including the two failure modes that took real
+iterations to get right there:
+
+- **Never two intervals on one run.** A PiP window's event loop is never throttled — that's
+  true regardless of whether the *opener* tab is visible — so once one is open, its own
+  `win.setInterval(onTick, 1000)` is the only thing advancing the run; `startTicking()` checks
+  `pipWin` and refuses to arm a second interval on top of it. Losing this guard doesn't corrupt
+  anything (`E.tick` is idempotent against wall-clock time, not tick count) but it does tick
+  everything, including chimes, twice as often as it should.
+- **A close must never leave state stale.** `pagehide` fires on the PiP window whether it was
+  closed by its own chrome, the in-app Back button, or `closePip()` — the handler is what
+  re-arms the main tab's interval if the run is still going, so however it closed, the display
+  doesn't freeze. `endRun()` closes it explicitly too, so ending a session never leaves an
+  orphaned floating window behind showing a run that no longer exists.
+
+Opened automatically at the end of `startRun()`, riding the Start click's own user activation —
+`documentPictureInPicture.requestWindow()` requires one, and a background `visibilitychange`
+event doesn't count, so there is no way to open it only once the tab is actually hidden. It
+silently no-ops if unsupported or declined; the topbar's float button (hidden unless
+`pipSupported()`) is the manual retry.
+
+The PiP window is its own `Document` and deliberately does **not** load the self-hosted Martian
+Mono font (`fonts/`) — same reasoning `study-tracker` landed on for its own PiP clock: a fresh
+document loading an async asset on open adds a flash-of-fallback-font window for no real
+benefit at this size. It uses the system monospace stack instead, colours pulled from the same
+`ACCENT` map `main.js` already uses, applied as `--pip-accent`.
+
 ## Ambient layer
 
 - **Sound is synthesised, not downloaded.** A bell is a few inharmonic sine
   partials with per-partial exponential decay; brown noise is integrated white
   noise through a lowpass. Both were prototyped in the spike and sound good. No
   audio files in the repo.
-- **No image assets, generated or otherwise.** The first version had drifting
-  gradient blobs; the redesign replaced them with `js/pulse.js`, a canvas trace
-  that is the signature motion instead of an ambient loop — see below. If the
-  user later wants their own wallpapers, read them from a local folder via the
+- **No image assets, generated or otherwise.** The wallpaper (`.wall`/`.blob`
+  in `css/app.css`) is three CSS radial blobs, not a picture. If the user
+  later wants their own wallpapers, read them from a local folder via the
   file picker; do not inline images as data URIs — one 1920×1080 JPEG is
   hundreds of KB base64'd and the repo stops being pleasant to work in.
 - **The clock and wordmark are set in a self-hosted mono, `fonts/`.** One
@@ -177,14 +209,18 @@ block is clicked into existence.
   else is the typographic idea; do not extend the mono to more elements or
   add a second self-hosted face without a real reason — that dilutes the one
   thing it was for.
-- **The pulse trace (`js/pulse.js`) is the signature, and it must stay tied to
-  real state, not decorate regardless of it.** It scrolls while the timer is
-  genuinely running and freezes the instant it is paused. If this is ever
-  extended (idle-screen ambience, a different waveform), keep that freeze —
-  it is what makes the motion a true reading of the app rather than a loop
-  that happens to sit near the clock. Colour comes from `--accent`, so it
-  recolours on the same phase shift as everything else; do not give it an
-  independent colour.
+- **The wallpaper is static — fixed blob positions, no `@keyframes`, full
+  stop.** An earlier pass (codenamed "Pulse") tried pausing ambient drift
+  during focus and only allowing it on a break; a pass before that used the
+  same compromise on the wallpaper itself. The owner's call after actually
+  living with motion next to the clock for a while: cut it entirely rather
+  than keep tuning when it's allowed to move. The one thing that still moves
+  is the clock's own seconds colon (`.colon` in `css/app.css`), which freezes
+  instead of blinking while paused — same freeze-means-something rule the
+  removed pulse trace (`js/pulse.js`, gone) used to enforce, just relocated
+  onto the clock itself instead of a separate element. Don't reintroduce a
+  second moving element without the owner asking for one; two "signature
+  motions" is a sign the first one didn't earn its keep.
 - **YouTube is the music source**, since the owner has no local media library.
   The player must be **visible** — YouTube's embed terms require it, so a 0×0
   hidden audio-only iframe is out. Design it in as a real element.
@@ -252,11 +288,16 @@ Unresolved at the time of writing — do not silently pick an answer:
 - Which videos does the owner actually want as stations? Needs real ones that
   pass the embed check, since the obvious candidates don't.
 
-Resolved: the visual direction question (see `design/` for the three
-original mockups it was chosen from — Station won, then went through a
-second pass, "Pulse," that dropped the ambient wallpaper for the trace in
-`js/pulse.js` and added the self-hosted mono. `design/` is left as history of
-how the decision was made, not a description of the current build.
+Resolved: the visual direction question, in three rounds — see `design/` for
+the mockups each one was chosen from. Station won over Quiet and Console
+(`design/index.html`). A second pass, "Pulse," dropped the wallpaper for a
+flat void plus a canvas trace (`js/pulse.js`) and added the self-hosted mono.
+A third pass (`design/round-two.html`) reverted that: the owner felt Pulse had
+drifted from what Station got right, so the wallpaper and glass card came
+back — static this time, not drifting — Quiet's larger clock came along too,
+and the trace was cut rather than kept alongside the wallpaper. `design/` is
+left as history of how each decision was made, not a description of the
+current build.
 
 ## Break overrun is not banked
 

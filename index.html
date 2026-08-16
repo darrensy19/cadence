@@ -10,11 +10,14 @@
 </head>
 <body>
 
-<!-- One soft, off-centre glow plus grain texture — the pulse trace on the running screen
-     (js/pulse.js) stays the signature motion; this is ambient depth, not a second one.
-     Costs no bytes and no network. -->
-<div class="wash" aria-hidden="true"></div>
+<!-- Station's wallpaper, static rather than drifting — colour and depth behind the glass
+     card, not a second signature motion competing with the clock's own. Three CSS blobs,
+     grain texture, and a veil that darkens the middle for legibility. Costs no bytes. -->
+<div class="wall" aria-hidden="true">
+  <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+</div>
 <div class="grain" aria-hidden="true"></div>
+<div class="veil" aria-hidden="true"></div>
 
 <main class="frame">
 
@@ -25,6 +28,7 @@
     <span class="brand" id="brand">cadence</span>
     <div class="top-right">
       <div class="segstrip" id="segStrip" hidden></div>
+      <button class="chip ghost icon" id="pipBtn" title="Float the clock (visible over other windows)" aria-label="Float the clock" hidden>⧉</button>
       <button class="chip ghost icon" id="logBtn" title="Today (L)" aria-label="Today">▤</button>
     </div>
   </header>
@@ -71,10 +75,11 @@
     </div>
 
     <!-- ============ running ============ -->
-    <div class="run" id="runCard" hidden>
+    <div class="card run" id="runCard" hidden>
       <div class="state" id="stateLabel">Focus</div>
-      <div class="clock" id="clock">00:00</div>
-      <div class="pulse-strip"><canvas id="pulseCanvas"></canvas></div>
+      <!-- Split so only the seconds colon blinks — the clock's only motion now that there is
+           no separate trace element. See css/app.css's .colon rule. -->
+      <div class="clock" id="clock"><span id="clockMM">00</span><span class="colon">:</span><span id="clockSS">00</span></div>
       <div class="timesig">
         <span class="frac" id="timesigFrac"></span>
         <span id="subline"></span>
@@ -90,6 +95,12 @@
 
   <footer class="botbar">
     <div class="hints" id="hints"></div>
+    <!-- Reserves Station's bottom-left player spot. Deliberately inert and honest about it —
+         no fake "now playing" text — until a real YouTube station is wired up (open question,
+         see CLAUDE.md). -->
+    <div class="player-chip" id="playerChip" hidden>
+      <span class="p-icon" aria-hidden="true">♪</span><span>No station set yet</span>
+    </div>
     <div class="desk" id="desk" hidden>
       <b id="deskTotal">0m</b> at desk
       <div id="deskSplit"></div>
