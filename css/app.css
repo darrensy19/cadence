@@ -182,7 +182,7 @@ input:focus { outline: none; border-color: var(--accent); }
    pulse trace supplies the atmosphere a frosted card used to. */
 .run { text-align: center; width: min(480px, 92vw); }
 .state {
-  font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.2em;
+  font-size: 15px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.14em;
   color: var(--accent); margin-bottom: 18px; transition: color 0.8s;
 }
 .clock {

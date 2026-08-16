@@ -266,8 +266,8 @@ function renderRun() {
     `${duration(E.liveFocusSec(run, t))} focus · ${duration(E.liveBreakSec(run, t))} break`;
 
   $('hints').innerHTML = phase === 'awaiting'
-    ? `<kbd>enter</kbd> start · <kbd>L</kbd> today`
-    : `<kbd>space</kbd> ${run.paused ? 'resume' : 'pause'} · <kbd>L</kbd> today`;
+    ? `<kbd>enter</kbd> start · <kbd>E</kbd> end · <kbd>L</kbd> today`
+    : `<kbd>space</kbd> ${run.paused ? 'resume' : 'pause'} · <kbd>E</kbd> end · <kbd>L</kbd> today`;
 }
 
 function todaysSessions() {
@@ -390,6 +390,9 @@ function onKey(e) {
   } else if (e.key === 'Enter' && run && run.phase === 'awaiting') {
     e.preventDefault();
     $('mainBtn').click();
+  } else if ((e.key === 'e' || e.key === 'E') && run) {
+    e.preventDefault();
+    $('endBtn').click();
   }
 }
 
