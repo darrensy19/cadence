@@ -6,6 +6,8 @@ machines: a personal MacBook and a work Windows laptop.
 
 It is a **public** repo. No data, no keys, no personal detail in the code.
 
+Current task list: [PLAN.md](PLAN.md). User-facing behavior and setup: [README.md](README.md).
+
 ## This is not a tracker
 
 It was nearly built inside `~/Projects/trackers` alongside the leave, office,
@@ -281,14 +283,12 @@ add a `.thatClass[hidden] { display: none; }` override — see the top of
 visual state (anything toggling `hidden`, anything new added to a class that
 already does) needs a real render to confirm, not just the test suite.
 
-## Open questions
+## Design history
 
-Unresolved at the time of writing — do not silently pick an answer:
+See `PLAN.md` for open tasks, including outstanding product decisions like
+which videos to use as ambient stations.
 
-- Which videos does the owner actually want as stations? Needs real ones that
-  pass the embed check, since the obvious candidates don't.
-
-Resolved: the visual direction question, in three rounds — see `design/` for
+The visual direction question was resolved in three rounds — see `design/` for
 the mockups each one was chosen from. Station won over Quiet and Console
 (`design/index.html`). A second pass, "Pulse," dropped the wallpaper for a
 flat void plus a canvas trace (`js/pulse.js`) and added the self-hosted mono.
