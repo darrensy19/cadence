@@ -17,13 +17,13 @@ this repo, so anything wanted here is installed here.
 | web-design-guidelines | Skill | 46 | Audits the focus-timer UI against interface guidelines. Complements `frontend-design` (design vs. audit), doesn't duplicate it |
 | playwright | Plugin | 0 | Installed **against the recommendation** at the time — this repo's `CLAUDE.md` documents a `jsc`-harness (pure logic) + manual-Chrome (storage/audio/DOM) split precisely because the file-picker/IndexedDB/PiP surface doesn't automate headlessly. Kept per explicit request; 0 always-on, so an unused install costs nothing |
 | typescript-lsp | Plugin | 0 | Also installed **against the original assessment** — plain JS, no build step, no TypeScript by explicit repo convention, so there's no `.ts` surface for it to work on. Per direct request; 0 always-on |
+| impeccable | Skill | 224 | **Not a per-project decision** — arrived via a global `npx impeccable install --global` on 2026-09-18. It is the alternative to `frontend-design`, which is also active here; this repo's own skip row warned against exactly this pairing. Resolve by dropping one, or by removing the global install and scoping it to the repos that want it |
 
 ## Deliberately skipped
 
 | Name | Kind | Tier | Why not |
 | --- | --- | --- | --- |
 | figma | Plugin | 2 | No Figma file in this project |
-| impeccable | Plugin | 2 | Alternative to `frontend-design` — don't run both |
 | claude-api | Plugin | 2 | Not building an LLM-powered feature here |
 | mattpocock-skills | Plugin | 2 | Personal project, no ticket/spec workflow |
 | feature-dev | Plugin | 2 | Overlaps `superpowers` without adding distinct value here |
